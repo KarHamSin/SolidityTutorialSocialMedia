@@ -1,102 +1,103 @@
 import React, { Component } from 'react';
-import Web3 from 'web3';
-import Identicon from 'identicon.js';
+import logo from '../logo.png';
 import './App.css';
-import SocialNetwork from '../abis/SocialNetwork.json'
+import Web3 from 'web3'
 import Navbar from './Navbar'
-import Main from './Main'
+import Posts from './Posts'
+import SocialNetwork from '../abis/SocialNetwork.json'
+import Identicon from 'identicon.js'
 
 class App extends Component {
 
-  async componentWillMount() {
+  async componentWillMount(){
     await this.loadWeb3()
-    await this.loadBlockchainData()
+    await this.loadBlockChainData()
   }
 
-  async loadWeb3() {
-    if (window.ethereum) {
+  async loadWeb3(){
+    if(window.ethereum) {
       window.web3 = new Web3(window.ethereum)
       await window.ethereum.enable()
-    }
-    else if (window.web3) {
+    }  
+    else if(window.web3) {
       window.web3 = new Web3(window.web3.currentProvider)
     }
-    else {
+    else { 
       window.alert('Non-Ethereum browser detected. You should consider trying MetaMask!')
     }
   }
 
-  async loadBlockchainData() {
+  async loadBlockChainData() {
     const web3 = window.web3
-    // Load account
     const accounts = await web3.eth.getAccounts()
-    this.setState({ account: accounts[0] })
-    // Network ID
+    console.log(accounts) //waar haalt ie de accounts op? is het uit ganache of je eigen geconnecte metamask
+    this.setState({account: accounts[0]})
+
     const networkId = await web3.eth.net.getId()
-    const networkData = SocialNetwork.networks[networkId]
+    const networkData = SocialNetwork.networks[networkId] 
     if(networkData) {
       const socialNetwork = web3.eth.Contract(SocialNetwork.abi, networkData.address)
       this.setState({ socialNetwork })
       const postCount = await socialNetwork.methods.postCount().call()
       this.setState({ postCount })
-      // Load Posts
-      for (var i = 1; i <= postCount; i++) {
+      console.log(postCount)
+      for(var i=1; i<=postCount; i++) {
         const post = await socialNetwork.methods.posts(i).call()
         this.setState({
           posts: [...this.state.posts, post]
         })
       }
-      // Sort posts. Show highest tipped posts first
-      this.setState({
-        posts: this.state.posts.sort((a,b) => b.tipAmount - a.tipAmount )
-      })
-      this.setState({ loading: false})
     } else {
-      window.alert('SocialNetwork contract not deployed to detected network.')
+      window.alert("SocialNetwork contract has not been deployed to the blockchain.")
     }
+    this.setState({loading: false}) 
   }
 
-  createPost(content) {
-    this.setState({ loading: true })
-    this.state.socialNetwork.methods.createPost(content).send({ from: this.state.account })
-    .once('receipt', (receipt) => {
-      this.setState({ loading: false })
-    })
-  }
-
-  tipPost(id, tipAmount) {
-    this.setState({ loading: true })
-    this.state.socialNetwork.methods.tipPost(id).send({ from: this.state.account, value: tipAmount })
-    .once('receipt', (receipt) => {
-      this.setState({ loading: false })
-    })
-  }
-
-  constructor(props) {
+  constructor(props) { 
     super(props)
     this.state = {
-      account: '',
+      account : '',
       socialNetwork: null,
       postCount: 0,
       posts: [],
       loading: true
     }
-
     this.createPost = this.createPost.bind(this)
     this.tipPost = this.tipPost.bind(this)
+  }
+
+  createPost(content) {
+    this.setState({ loading: true })
+    this.state.socialNetwork.methods.createPost(content).send({ from: this.state.account })
+
+    //have to do this hack due to something going wrong, with the event and I can't seem to figure out what it is:
+    //I think its the provider that is not good
+    //https://stackoverflow.com/questions/71887648/how-do-i-handle-solidity-events-in-web3
+    setTimeout(function(){
+      this.setState({ loading: false })    
+    }.bind(this), 5000);
+
+  }
+
+  tipPost(postId, amount) {
+    console.log("amount:" + amount)
+    console.dir(amount)
+    this.setState({ loading: true })
+    console.log("tipping: " + window.web3.utils.toWei(amount, "ether"))
+    this.state.socialNetwork.methods.tipPost(postId).send({ from: this.state.account, value: window.web3.utils.toWei(amount, "ether")})
+    .once('receipt', (receipt) => {
+      this.setState({ loading: false })
+    })
   }
 
   render() {
     return (
       <div>
         <Navbar account={this.state.account} />
-        { this.state.loading
+        {
+          this.state.loading 
           ? <div id="loader" className="text-center mt-5"><p>Loading...</p></div>
-          : <Main
-              posts={this.state.posts}
-              createPost={this.createPost}
-              tipPost={this.tipPost}
-            />
+          : <Posts posts={this.state.posts} createPost={this.createPost} tipPost={this.tipPost} />
         }
       </div>
     );
@@ -104,3 +105,5 @@ class App extends Component {
 }
 
 export default App;
+
+
