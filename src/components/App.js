@@ -1,11 +1,9 @@
 import React, { Component } from 'react';
-import logo from '../logo.png';
 import './App.css';
 import Web3 from 'web3'
 import Navbar from './Navbar'
 import Posts from './Posts'
 import SocialNetwork from '../abis/SocialNetwork.json'
-import Identicon from 'identicon.js'
 
 class App extends Component {
 
@@ -30,17 +28,16 @@ class App extends Component {
   async loadBlockChainData() {
     const web3 = window.web3
     const accounts = await web3.eth.getAccounts()
-    console.log(accounts) //waar haalt ie de accounts op? is het uit ganache of je eigen geconnecte metamask
     this.setState({account: accounts[0]})
 
     const networkId = await web3.eth.net.getId()
     const networkData = SocialNetwork.networks[networkId] 
     if(networkData) {
-      const socialNetwork = web3.eth.Contract(SocialNetwork.abi, networkData.address)
+      const socialNetwork = new web3.eth.Contract(SocialNetwork.abi, networkData.address)
       this.setState({ socialNetwork })
       const postCount = await socialNetwork.methods.postCount().call()
       this.setState({ postCount })
-      console.log(postCount)
+      this.setState({posts:[]})
       for(var i=1; i<=postCount; i++) {
         const post = await socialNetwork.methods.posts(i).call()
         this.setState({
@@ -66,27 +63,26 @@ class App extends Component {
     this.tipPost = this.tipPost.bind(this)
   }
 
-  createPost(content) {
+  async createPost(content) {
     this.setState({ loading: true })
     this.state.socialNetwork.methods.createPost(content).send({ from: this.state.account })
-
-    //have to do this hack due to something going wrong, with the event and I can't seem to figure out what it is:
-    //I think its the provider that is not good
-    //https://stackoverflow.com/questions/71887648/how-do-i-handle-solidity-events-in-web3
-    setTimeout(function(){
-      this.setState({ loading: false })    
-    }.bind(this), 5000);
-
+    .once('receipt', (receipt) => {
+      this.loadBlockChainData()
+    })
+    .on('error', function(error){ 
+      window.alert(error)
+    })
   }
 
-  tipPost(postId, amount) {
-    console.log("amount:" + amount)
-    console.dir(amount)
+  async tipPost(postId, amount) {
     this.setState({ loading: true })
-    console.log("tipping: " + window.web3.utils.toWei(amount, "ether"))
+    
     this.state.socialNetwork.methods.tipPost(postId).send({ from: this.state.account, value: window.web3.utils.toWei(amount, "ether")})
-    .once('receipt', (receipt) => {
-      this.setState({ loading: false })
+    .once('receipt', async (receipt) => {
+      this.loadBlockChainData()
+    })
+    .on('error', function(error){ 
+      window.alert(error)
     })
   }
 
@@ -97,7 +93,10 @@ class App extends Component {
         {
           this.state.loading 
           ? <div id="loader" className="text-center mt-5"><p>Loading...</p></div>
-          : <Posts posts={this.state.posts} createPost={this.createPost} tipPost={this.tipPost} />
+          : <Posts 
+          posts={this.state.posts} 
+          createPost={this.createPost} 
+          tipPost={this.tipPost} />
         }
       </div>
     );

@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import Identicon from 'identicon.js'
+import Web3 from 'web3'
 
 class PostCard extends Component {
   constructor(props) {
@@ -11,9 +12,13 @@ class PostCard extends Component {
     this.setState({tipAmount: event.target.value});
   }
 
+  toEther = wei => {
+    return wei/10e17
+  }
+
   render() {
     return (
-          <div key={this.props.post.id.toNumber()} className="card bg-light mb-3" style={{maxWidth: '30rem'}}>          
+          <div className="card bg-light mb-3" style={{maxWidth: '30rem'}}>          
               <div className="card-header">
               <img 
                 className="ml-2" 
@@ -28,10 +33,10 @@ class PostCard extends Component {
               </div>
               <form onSubmit={(event) => { 
                   event.preventDefault()
-                  this.props.tipPost(this.props.post.id.toNumber(), this.state.tipAmount)
+                  this.props.tipPost(this.props.post.id, this.state.tipAmount)
               }}>
                 <div className="card-footer row">
-                    <p className="col-sm-3">Tips: {this.props.post.tipAmount.toString()} ETH</p>
+                    <p className="col-sm-3">Tips: {this.toEther(this.props.post.tipAmount)} ETH</p>
                     <p className="col-sm-3">Give tip</p>
                     <input className="col-sm-3" onChange={this.handleChange} type="text"/>
                     <input 

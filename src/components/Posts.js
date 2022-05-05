@@ -37,7 +37,7 @@ class Posts extends Component {
                 {
                   this.props.posts.map((post) => {
                     return(
-                     <PostCard key={post.id.toNumber()} post={post} index={post.id.toNumber()} tipPost={this.props.tipPost} />
+                     <PostCard key={"postcard-"+post.id} post={post} index={post.id} tipPost={this.props.tipPost} />
                     )
                   })
                 }
